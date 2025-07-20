@@ -31,6 +31,11 @@ export interface DiceRoll {
   diceType: 'standard' | 'indian';
 }
 
+export interface MoveValidation {
+  isValid: boolean;
+  reason?: string;
+}
+
 export interface GameState {
   players: Player[];
   currentPlayerIndex: number;
@@ -39,6 +44,12 @@ export interface GameState {
   selectedPiece: GamePiece | null;
   gameMode: '2player' | '3player' | '4player';
   diceType: 'standard' | 'indian';
+  // Phase 4 additions
+  lastRoll: DiceRoll | null;
+  gameOver: boolean;
+  lastMoveValidation: MoveValidation | null;
+  highlightedPositions: Position[];
+  turnSkipped: boolean;
 }
 
 export interface BoardPosition {
@@ -62,4 +73,14 @@ export type GameAction =
   | { type: 'MOVE_PIECE'; move: Move }
   | { type: 'END_TURN' }
   | { type: 'START_GAME'; gameMode: GameState['gameMode']; diceType: GameState['diceType'] }
-  | { type: 'RESET_GAME' }; 
+  | { type: 'RESET_GAME' }
+  // Phase 4 additions
+  | { type: 'CLEAR_SELECTION' }
+  | { type: 'SET_DICE_TYPE'; diceType: 'standard' | 'indian' }
+  | { type: 'VALIDATE_MOVE'; piece: GamePiece; targetPosition: Position }
+  | { type: 'EXECUTE_MOVE_WITH_CAPTURE'; piece: GamePiece; targetPosition: Position }
+  | { type: 'HIGHLIGHT_VALID_MOVES'; pieceId: string }
+  | { type: 'CLEAR_HIGHLIGHTS' }
+  | { type: 'CHECK_GAME_OVER' }
+  | { type: 'AUTO_END_TURN' }
+  | { type: 'CLEAR_TURN_SKIPPED' }; 

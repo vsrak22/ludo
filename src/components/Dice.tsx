@@ -28,7 +28,7 @@ export const Dice: React.FC<DiceProps> = ({
 
   // Handle dice rolling animation
   const handleRoll = async () => {
-    if (!canRoll) return;
+    if (!canRoll || isRolling) return; // Prevent multiple rapid clicks
 
     setIsRolling(true);
     setAnimationKey(prev => prev + 1);
@@ -46,13 +46,19 @@ export const Dice: React.FC<DiceProps> = ({
 
     // Final roll
     rollDiceForCurrentPlayer();
-    setIsRolling(false);
+    
+    // Wait a bit before allowing another roll
+    setTimeout(() => {
+      setIsRolling(false);
+    }, 200);
 
-    // Get the latest dice roll from state
-    const latestRoll = state.diceRolls[state.diceRolls.length - 1];
-    if (onRoll && latestRoll) {
-      onRoll(latestRoll);
-    }
+    // Get the latest dice roll from state after a short delay
+    setTimeout(() => {
+      const latestRoll = state.diceRolls[state.diceRolls.length - 1];
+      if (onRoll && latestRoll) {
+        onRoll(latestRoll);
+      }
+    }, 100);
   };
 
   // Get dice face based on value and type
@@ -143,7 +149,6 @@ export const Dice: React.FC<DiceProps> = ({
           backgroundColor: isBonus ? `${getDiceColor()}20` : 'white'
         }}
         key={animationKey}
-        onClick={handleRoll}
       >
         {getDiceFace(currentValue, currentDiceType)}
         

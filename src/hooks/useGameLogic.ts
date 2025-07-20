@@ -5,10 +5,8 @@ import {
   isValidPosition, 
   isSafeZone, 
   getPiecesAtPosition, 
-  canBeCaptured,
   canEnterGame,
   hasPlayerWon,
-  getPiecesInMoksha,
   // Phase 3 additions
   isPlayerActive,
   hasMovablePieces,
@@ -16,9 +14,6 @@ import {
   canMovePiece,
   getPlayerStats,
   isValidPlayerTurn,
-  movePiece,
-  capturePiece,
-  moveToMoksha,
   canCapturePiece,
   getHomePosition,
   canMultiplePiecesOccupy,
@@ -26,12 +21,21 @@ import {
   rollDice,
   getTotalDiceValue,
   canContinueRolling,
-  getNextPlayerIndex,
   isBonusRoll,
   getMaxDiceValue,
-  isValidDiceValue
+  isValidDiceValue,
+  // Phase 4 additions
+  getEntryPosition,
+  calculatePath,
+  isValidLudoMove,
+  getValidMoves,
+  canEnterMoksha,
+  executeMove as executeMoveUtil,
+  hasValidMoves,
+  getAllValidMoves,
+  isFirstPieceToEnter
 } from '../utils/gameUtils';
-import { DICE_RULES, GAME_RULES, MOKSHA_POSITION } from '../constants/gameConstants';
+import { DICE_RULES } from '../constants/gameConstants';
 
 export const useGameLogic = () => {
   const { state, dispatch } = useGame();
@@ -81,13 +85,9 @@ export const useGameLogic = () => {
    * Calculate possible moves for a piece
    */
   const getPossibleMoves = useCallback((piece: GamePiece): Position[] => {
-    const moves: Position[] = [];
     const totalDiceValue = getTotalDiceValue(state.diceRolls);
-    
-    // This is a simplified version - will be enhanced in Phase 4 with path calculation
-    // For now, just return empty array as movement logic will be implemented in Phase 4
-    return moves;
-  }, [state.diceRolls]);
+    return getValidMoves(piece, totalDiceValue, state.players);
+  }, [state.diceRolls, state.players]);
 
   /**
    * Execute a move
@@ -101,10 +101,12 @@ export const useGameLogic = () => {
    */
   const canRollDice = useCallback((): boolean => {
     const currentPlayer = state.players[state.currentPlayerIndex];
+    const hasBonusThrows = canContinueRolling(state.diceRolls);
+    
     return currentPlayer?.currentTurn && 
            isPlayerActive(currentPlayer) && 
-           state.diceRolls.length === 0;
-  }, [state.players, state.currentPlayerIndex, state.diceRolls.length]);
+           (state.diceRolls.length === 0 || hasBonusThrows);
+  }, [state.players, state.currentPlayerIndex, state.diceRolls]);
 
   /**
    * Roll the dice
@@ -241,11 +243,7 @@ export const useGameLogic = () => {
    * Check if a piece can move to Moksha
    */
   const canMoveToMoksha = useCallback((piece: GamePiece, diceValue: number): boolean => {
-    // This will be enhanced in Phase 4 with path calculation
-    // For now, just check if piece is close to Moksha
-    const distanceToMoksha = Math.abs(piece.position.x - MOKSHA_POSITION.x) + 
-                            Math.abs(piece.position.y - MOKSHA_POSITION.y);
-    return distanceToMoksha === diceValue;
+    return canEnterMoksha(piece, diceValue);
   }, []);
 
   /**
@@ -299,6 +297,94 @@ export const useGameLogic = () => {
     return DICE_RULES[state.diceType].bonusValues;
   }, [state.diceType]);
 
+  // ===== PHASE 4: MOVEMENT RULES =====
+
+  /**
+   * Get valid moves for a specific piece
+   */
+  const getValidMovesForPiece = useCallback((piece: GamePiece): Position[] => {
+    const totalDiceValue = getTotalDiceValueForTurn();
+    return getValidMoves(piece, totalDiceValue, state.players);
+  }, [getTotalDiceValueForTurn, state.players]);
+
+  /**
+   * Get all valid moves for current player
+   */
+  const getCurrentPlayerValidMoves = useCallback(() => {
+    const currentPlayer = getCurrentPlayer();
+    if (!currentPlayer) return [];
+    
+    const totalDiceValue = getTotalDiceValueForTurn();
+    return getAllValidMoves(currentPlayer, totalDiceValue, state.players);
+  }, [getCurrentPlayer, getTotalDiceValueForTurn, state.players]);
+
+  /**
+   * Check if current player has any valid moves
+   */
+  const currentPlayerHasValidMoves = useCallback((): boolean => {
+    const currentPlayer = getCurrentPlayer();
+    if (!currentPlayer) return false;
+    
+    const totalDiceValue = getTotalDiceValueForTurn();
+    return hasValidMoves(currentPlayer, totalDiceValue, state.players);
+  }, [getCurrentPlayer, getTotalDiceValueForTurn, state.players]);
+
+  /**
+   * Validate a move according to Ludo rules
+   */
+  const validateLudoMove = useCallback((piece: GamePiece, targetPosition: Position) => {
+    const totalDiceValue = getTotalDiceValueForTurn();
+    return isValidLudoMove(piece, targetPosition, totalDiceValue, state.players);
+  }, [getTotalDiceValueForTurn, state.players]);
+
+  /**
+   * Execute a move with capture handling
+   */
+  const executeMoveWithCapture = useCallback((piece: GamePiece, targetPosition: Position) => {
+    const result = executeMoveUtil(piece, targetPosition, state.players);
+    
+    // Create move object for dispatch
+    const move: Move = {
+      piece: result.updatedPiece,
+      from: piece.position,
+      to: targetPosition,
+      isCapture: result.capturedPieces.length > 0,
+      capturedPiece: result.capturedPieces[0] // For now, handle first capture
+    };
+    
+    dispatch({ type: 'MOVE_PIECE', move });
+    
+    return result;
+  }, [state.players, dispatch]);
+
+  /**
+   * Get the entry position for a piece
+   */
+  const getPieceEntryPosition = useCallback((playerId: number, pieceIndex: number): Position => {
+    return getEntryPosition(playerId, pieceIndex);
+  }, []);
+
+  /**
+   * Calculate path between two positions
+   */
+  const calculatePathBetween = useCallback((from: Position, to: Position, playerId: number): Position[] => {
+    return calculatePath(from, to, playerId);
+  }, []);
+
+  /**
+   * Check if a piece can enter the game
+   */
+  const canPieceEnterGame = useCallback((piece: GamePiece, diceValue: number): boolean => {
+    return canEnterGame(piece, diceValue, isFirstPieceToEnter(piece));
+  }, []);
+
+  /**
+   * Get highlighted positions for valid moves
+   */
+  const getHighlightedPositions = useCallback((piece: GamePiece): Position[] => {
+    return getValidMovesForPiece(piece);
+  }, [getValidMovesForPiece]);
+
   return {
     // State
     state,
@@ -343,6 +429,17 @@ export const useGameLogic = () => {
     getMaxDiceValueForCurrentType,
     isDiceRollBonus,
     getBonusValuesForCurrentType,
+    
+    // Phase 4: Movement Rules
+    getValidMovesForPiece,
+    getCurrentPlayerValidMoves,
+    currentPlayerHasValidMoves,
+    validateLudoMove,
+    executeMoveWithCapture,
+    getPieceEntryPosition,
+    calculatePathBetween,
+    canPieceEnterGame,
+    getHighlightedPositions,
     
     // Dispatch
     dispatch

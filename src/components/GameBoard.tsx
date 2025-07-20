@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import styled from 'styled-components';
-import { useGame } from '../store/GameContext';
+import { useGameLogic } from '../hooks/useGameLogic';
+import { GamePiece, Position } from '../types/game';
 import { BOARD_SIZE, PLAYER_COLORS, SAFE_ZONES, REGULAR_SPOTS, MOKSHA_AREA, MIDDLE_SQUARE_PATHS, INNER_SQUARE_PATHS } from '../constants/gameConstants';
-import BoardLayout from './BoardLayout';
-import PathIndicators from './PathIndicators';
-import PathIndicatorDemo from './PathIndicatorDemo';
+import MoveIndicator from './MoveIndicator';
+import PieceSelector from './PieceSelector';
 
 const BoardContainer = styled.div`
   display: flex;
@@ -42,15 +42,147 @@ const BoardWrapper = styled.div`
   background: #f8f9fa;
 `;
 
+const GameBoardContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 15px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+`;
+
 const BoardGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(${BOARD_SIZE}, 1fr);
   grid-template-rows: repeat(${BOARD_SIZE}, 1fr);
   gap: 1px;
-  background: #333;
-  width: 100%;
-  height: 100%;
+  background: #2c3e50;
+  border: 3px solid #34495e;
+  border-radius: 10px;
+  padding: 10px;
+  width: 600px;
+  height: 600px;
   position: relative;
+`;
+
+const Cell = styled.div.withConfig({
+  shouldForwardProp: (prop) => ![
+    'isSafeZone', 
+    'isHomeArea', 
+    'playerId', 
+    'isHighlighted', 
+    'isRegularSpot', 
+    'isMoksha', 
+    'isMiddleSquarePath', 
+    'isInnerSquarePath', 
+    'square'
+  ].includes(prop)
+})<{ 
+  isSafeZone: boolean; 
+  isHomeArea: boolean;
+  playerId?: number;
+  isHighlighted: boolean;
+  isRegularSpot: boolean;
+  isMoksha: boolean;
+  isMiddleSquarePath: boolean;
+  isInnerSquarePath: boolean;
+  square: 1 | 2 | 3;
+}>`
+  background: ${props => {
+    if (props.isHighlighted) return '#f1c40f';
+    if (props.isMoksha) return '#8e44ad';
+    if (props.isHomeArea && props.playerId) {
+      return PLAYER_COLORS[props.playerId - 1];
+    }
+    if (props.isSafeZone) return '#f39c12';
+    if (props.isRegularSpot) {
+      switch (props.square) {
+        case 1: return '#e8f5e8';
+        case 2: return '#e3f2fd';
+        case 3: return '#fff3e0';
+        default: return '#fff';
+      }
+    }
+    if (props.isMiddleSquarePath && !props.isRegularSpot) return '#d4edda';
+    if (props.isInnerSquarePath && !props.isRegularSpot) return '#c3e6cb';
+    return '#fff';
+  }};
+  border: 1px solid ${props => {
+    if (props.isMoksha) return '#6c5ce7';
+    return props.isSafeZone ? '#95a5a6' : '#7f8c8d';
+  }};
+  border-radius: 4px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: ${props => {
+      if (props.isHighlighted) return '#f39c12';
+      if (props.isMoksha) return '#9b59b6';
+      if (props.isHomeArea && props.playerId) {
+        return `${PLAYER_COLORS[props.playerId - 1]}dd`;
+      }
+      if (props.isSafeZone) return '#e67e22';
+      if (props.isRegularSpot) {
+        switch (props.square) {
+          case 1: return '#d4edda';
+          case 2: return '#cce7ff';
+          case 3: return '#ffe0b2';
+          default: return '#f8f9fa';
+        }
+      }
+      if (props.isMiddleSquarePath && !props.isRegularSpot) return '#b8dacc';
+      if (props.isInnerSquarePath && !props.isRegularSpot) return '#a8d5b5';
+      return '#f8f9fa';
+    }};
+    transform: scale(1.05);
+  }
+`;
+
+const Piece = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['color', 'isSelected', 'isMovable'].includes(prop)
+})<{ 
+  color: string; 
+  isSelected: boolean;
+  isMovable: boolean;
+}>`
+  width: 80%;
+  height: 80%;
+  border-radius: 50%;
+  background: ${props => props.color};
+  border: 3px solid ${props => props.isSelected ? '#e74c3c' : 'white'};
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  cursor: ${props => props.isMovable ? 'pointer' : 'default'};
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 10;
+
+  &:hover {
+    transform: ${props => props.isMovable ? 'scale(1.1)' : 'scale(1)'};
+    box-shadow: ${props => props.isMovable ? '0 6px 12px rgba(0, 0, 0, 0.4)' : '0 4px 8px rgba(0, 0, 0, 0.3)'};
+  }
+
+  ${props => props.isSelected && `
+    animation: pulse 1.5s infinite;
+    
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(231, 76, 60, 0.7);
+      }
+      70% {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 0 0 10px rgba(231, 76, 60, 0);
+      }
+      100% {
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(231, 76, 60, 0);
+      }
+    }
+  `}
 `;
 
 const CoordinateTooltip = styled.div`
@@ -70,129 +202,6 @@ const CoordinateTooltip = styled.div`
   transition: opacity 0.2s ease;
 `;
 
-const Cell = styled.div<{ 
-  isHome: boolean; 
-  playerId?: number;
-  isSafeZone: boolean;
-  isRegularSpot: boolean;
-  isMoksha: boolean;
-  isMiddleSquarePath: boolean;
-  isInnerSquarePath: boolean;
-  square: 1 | 2 | 3;
-}>`
-  width: 100%;
-  height: 100%;
-  background: ${props => {
-    if (props.isMoksha) return '#8e44ad';
-    if (props.isHome && props.playerId) {
-      return PLAYER_COLORS[props.playerId - 1];
-    }
-    if (props.isSafeZone) return '#f39c12';
-    if (props.isRegularSpot) {
-      switch (props.square) {
-        case 1: return '#e8f5e8';
-        case 2: return '#e3f2fd';
-        case 3: return '#fff3e0';
-        default: return '#fff';
-      }
-    }
-    // Show only the path squares with light green shading (but not if it's a regular spot)
-    if (props.isMiddleSquarePath && !props.isRegularSpot) return '#d4edda'; // Light green for middle square path
-    if (props.isInnerSquarePath && !props.isRegularSpot) return '#c3e6cb'; // Slightly darker green for inner square path
-    return '#fff';
-  }};
-  border: 1px solid ${props => {
-    if (props.isMoksha) return '#6c5ce7';
-    return '#e0e0e0';
-  }};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 6px;
-  color: #666;
-  position: relative;
-  aspect-ratio: 1;
-  transition: all 0.1s ease;
-
-
-
-  &:hover {
-    background: ${props => {
-      if (props.isMoksha) return '#9b59b6';
-      if (props.isHome && props.playerId) {
-        return `${PLAYER_COLORS[props.playerId - 1]}dd`;
-      }
-      if (props.isSafeZone) return '#e67e22';
-      if (props.isRegularSpot) {
-        switch (props.square) {
-          case 1: return '#d4edda';
-          case 2: return '#cce7ff';
-          case 3: return '#ffe0b2';
-          default: return '#f8f9fa';
-        }
-      }
-      // Hover effects for inner paths
-      if (props.isMiddleSquarePath && !props.isRegularSpot) return '#b8dacc'; // Darker green for middle square path hover
-      if (props.isInnerSquarePath && !props.isRegularSpot) return '#a8d5b5'; // Darker green for inner square path hover
-      return '#f8f9fa';
-    }};
-
-    ${CoordinateTooltip} {
-      opacity: 1;
-    }
-  }
-`;
-
-const Piece = styled.div<{ color: string; isSelected: boolean }>`
-  width: 70%;
-  height: 70%;
-  background: ${props => props.color};
-  border-radius: 8px;
-  border: 2px solid ${props => props.isSelected ? '#333' : 'rgba(0, 0, 0, 0.3)'};
-  box-shadow: 
-    0 2px 4px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  z-index: 2;
-
-  &:hover {
-    transform: scale(1.1) translateY(-1px);
-    box-shadow: 
-      0 4px 8px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.5),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.3);
-  }
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 20%;
-    left: 20%;
-    width: 60%;
-    height: 60%;
-    background: ${props => props.color};
-    border-radius: 4px;
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  }
-
-  &::after {
-    content: '';
-    position: absolute;
-    top: 35%;
-    left: 35%;
-    width: 30%;
-    height: 30%;
-    background: ${props => props.color};
-    border-radius: 2px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  }
-`;
-
 const GameInfo = styled.div`
   padding: 20px;
   background: white;
@@ -204,19 +213,107 @@ const GameInfo = styled.div`
 
 const GameInfoPanel = styled.div`
   display: flex;
-  gap: 20px;
-  align-items: flex-start;
-  margin-top: 20px;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
+  gap: 15px;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  min-width: 250px;
 `;
 
-const PlayerInfo = styled.div<{ isCurrentTurn: boolean }>`
+const GameStatus = styled.div`
+  text-align: center;
   padding: 10px;
-  margin: 5px 0;
-  border-radius: 5px;
-  background: ${props => props.isCurrentTurn ? '#e3f2fd' : '#f5f5f5'};
-  border-left: 4px solid ${props => props.isCurrentTurn ? '#2196f3' : '#ddd'};
+  background: #3498db;
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+`;
+
+const TurnInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: #ecf0f1;
+  border-radius: 8px;
+`;
+
+const PlayerIndicator = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['color'].includes(prop)
+})<{ color: string }>`
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: ${props => props.color};
+  border: 2px solid white;
+`;
+
+const MovementControls = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 2px solid #e9ecef;
+`;
+
+const ControlButton = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' }>`
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: ${props => {
+    switch (props.variant) {
+      case 'primary': return '#3498db';
+      case 'secondary': return '#95a5a6';
+      case 'danger': return '#e74c3c';
+      default: return '#ecf0f1';
+    }
+  }};
+  color: ${props => props.variant ? 'white' : '#2c3e50'};
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+`;
+
+const TurnSkippedNotification = styled.div`
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #e74c3c;
+  color: white;
+  padding: 15px 25px;
+  border-radius: 8px;
+  font-weight: 600;
+  z-index: 1000;
+  animation: slideDown 0.3s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+  @keyframes slideDown {
+    from {
+      transform: translateX(-50%) translateY(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  }
 `;
 
 const Legend = styled.div`
@@ -235,7 +332,9 @@ const LegendItem = styled.div`
   margin: 2px 0;
 `;
 
-const LegendColor = styled.div<{ color: string }>`
+const LegendColor = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['color'].includes(prop)
+})<{ color: string }>`
   width: 12px;
   height: 12px;
   background: ${props => props.color};
@@ -245,121 +344,259 @@ const LegendColor = styled.div<{ color: string }>`
 `;
 
 const GameBoard: React.FC = () => {
-  const { state, dispatch } = useGame();
+  const {
+    state,
+    dispatch,
+    canSelectPiece,
+    getValidMovesForPiece,
+    executeMoveWithCapture,
+    currentPlayerHasValidMoves,
+    getCurrentPlayerValidMoves,
+    validateLudoMove,
+    getHighlightedPositions,
+    canRollDice,
+    rollDiceForCurrentPlayer,
+    canEndTurn,
+    endTurn,
+    isGameOver,
+    getWinners,
+    hasBonusThrows
+  } = useGameLogic();
 
-  const handlePieceClick = (piece: any) => {
-    dispatch({ type: 'SELECT_PIECE', piece });
-  };
+  const [selectedPiece, setSelectedPiece] = useState<GamePiece | null>(null);
+  const [validMoves, setValidMoves] = useState<Position[]>([]);
+  const [showPieceSelector, setShowPieceSelector] = useState(false);
 
-  // Helper functions to determine cell properties
-  const isHomeArea = (x: number, y: number): { isHome: boolean; playerId?: number } => {
-    if (x >= 16 && x <= 17 && y >= 1 && y <= 2) return { isHome: true, playerId: 1 };
-    if (x >= 1 && x <= 2 && y >= 16 && y <= 17) return { isHome: true, playerId: 2 };
-    if (x >= 16 && x <= 17 && y >= 31 && y <= 32) return { isHome: true, playerId: 3 };
-    if (x >= 31 && x <= 32 && y >= 16 && y <= 17) return { isHome: true, playerId: 4 };
-    return { isHome: false };
-  };
+  // Handle piece selection
+  const handlePieceClick = useCallback((piece: GamePiece) => {
+    if (!canSelectPiece(piece)) return;
 
-  const isSafeZone = (x: number, y: number): boolean => {
+    setSelectedPiece(piece);
+    const moves = getValidMovesForPiece(piece);
+    setValidMoves(moves);
+    setShowPieceSelector(false);
+  }, [canSelectPiece, getValidMovesForPiece]);
+
+  // Handle cell click for movement
+  const handleCellClick = useCallback((position: Position) => {
+    if (!selectedPiece) return;
+
+    const validation = validateLudoMove(selectedPiece, position);
+    if (!validation.isValid) return;
+
+    // Execute the move
+    executeMoveWithCapture(selectedPiece, position);
+    
+    // Clear selection
+    setSelectedPiece(null);
+    setValidMoves([]);
+  }, [selectedPiece, validateLudoMove, executeMoveWithCapture]);
+
+  // Handle piece selector
+  const handlePieceSelect = useCallback((piece: GamePiece) => {
+    handlePieceClick(piece);
+  }, [handlePieceClick]);
+
+  // Check if a position is a valid move
+  const isValidMovePosition = useCallback((position: Position): boolean => {
+    return validMoves.some(move => move.x === position.x && move.y === position.y);
+  }, [validMoves]);
+
+  // Check if a piece is selected
+  const isPieceSelected = useCallback((piece: GamePiece): boolean => {
+    return selectedPiece?.id === piece.id;
+  }, [selectedPiece]);
+
+  // Check if a piece can be moved
+  const canPieceBeMoved = useCallback((piece: GamePiece): boolean => {
+    return canSelectPiece(piece);
+  }, [canSelectPiece]);
+
+  // Get all pieces at a position
+  const getPiecesAtPosition = useCallback((position: Position): GamePiece[] => {
+    return state.players.flatMap(player => 
+      player.pieces.filter(piece => 
+        piece.position.x === position.x && piece.position.y === position.y
+      )
+    );
+  }, [state.players]);
+
+  // Check if position is a home area
+  const isHomeArea = useCallback((position: Position): boolean => {
+    return state.players.some(player => 
+      player.pieces.some(piece => 
+        piece.position.x === position.x && 
+        piece.position.y === position.y && 
+        piece.isInHome
+      )
+    );
+  }, [state.players]);
+
+  // Check if position is a safe zone
+  const isSafeZone = useCallback((position: Position): boolean => {
     return SAFE_ZONES.some(zone => 
-      x >= zone.x && x < zone.x + zone.width &&
-      y >= zone.y && y < zone.y + zone.height
+      position.x >= zone.x && position.x < zone.x + zone.width &&
+      position.y >= zone.y && position.y < zone.y + zone.height
     );
-  };
+  }, []);
 
-  const isRegularSpot = (x: number, y: number): boolean => {
+  // Check if position is a regular spot
+  const isRegularSpot = useCallback((position: Position): boolean => {
     return REGULAR_SPOTS.some(spot => 
-      x >= spot.x && x < spot.x + spot.width &&
-      y >= spot.y && y < spot.y + spot.height
+      position.x >= spot.x && position.x < spot.x + spot.width &&
+      position.y >= spot.y && position.y < spot.y + spot.height
     );
-  };
+  }, []);
 
-  const isMiddleSquarePath = (x: number, y: number): boolean => {
+  // Check if position is in Moksha area
+  const isMoksha = useCallback((position: Position): boolean => {
+    return position.x >= MOKSHA_AREA.x && position.x < MOKSHA_AREA.x + MOKSHA_AREA.width &&
+           position.y >= MOKSHA_AREA.y && position.y < MOKSHA_AREA.y + MOKSHA_AREA.height;
+  }, []);
+
+  // Check if position is in middle square path
+  const isMiddleSquarePath = useCallback((position: Position): boolean => {
     return MIDDLE_SQUARE_PATHS.some(path => 
-      x >= path.x && x < path.x + path.width &&
-      y >= path.y && y < path.y + path.height
+      position.x >= path.x && position.x < path.x + path.width &&
+      position.y >= path.y && position.y < path.y + path.height
     );
-  };
+  }, []);
 
-  const isInnerSquarePath = (x: number, y: number): boolean => {
+  // Check if position is in inner square path
+  const isInnerSquarePath = useCallback((position: Position): boolean => {
     return INNER_SQUARE_PATHS.some(path => 
-      x >= path.x && x < path.x + path.width &&
-      y >= path.y && y < path.y + path.height
+      position.x >= path.x && position.x < path.x + path.width &&
+      position.y >= path.y && position.y < path.y + path.height
     );
-  };
+  }, []);
 
-  const getSquare = (x: number, y: number): 1 | 2 | 3 => {
-    // Outer square (square 1)
-    if (x >= 3 && x <= 30 && y >= 3 && y <= 30) {
-      // Inner square (square 3) - center area
-      if (x >= 11 && x <= 22 && y >= 11 && y <= 22) {
-        return 3;
-      }
-      // Middle square (square 2) - between outer and inner
-      if (x >= 7 && x <= 26 && y >= 7 && y <= 26) {
-        return 2;
-      }
-      return 1;
+  // Get square number for a position
+  const getSquare = useCallback((position: Position): 1 | 2 | 3 => {
+    if (position.x >= 11 && position.x <= 22 && position.y >= 11 && position.y <= 22) {
+      return 3; // Inner square
+    } else if (position.x >= 7 && position.x <= 26 && position.y >= 7 && position.y <= 26) {
+      return 2; // Middle square
+    } else {
+      return 1; // Outer square
     }
-    return 1;
-  };
+  }, []);
 
-  const renderCell = (x: number, y: number) => {
-    const homeInfo = isHomeArea(x, y);
-    const safe = isSafeZone(x, y);
-    const regular = isRegularSpot(x, y);
-    const middlePath = isMiddleSquarePath(x, y);
-    const innerPath = isInnerSquarePath(x, y);
-    const moksha = x >= MOKSHA_AREA.x && x < MOKSHA_AREA.x + MOKSHA_AREA.width &&
-                   y >= MOKSHA_AREA.y && y < MOKSHA_AREA.y + MOKSHA_AREA.height;
-    const square = getSquare(x, y);
+  // Get player color for a position
+  const getPlayerColorForPosition = useCallback((position: Position): number | undefined => {
+    for (const player of state.players) {
+      const pieceAtPosition = player.pieces.find(piece => 
+        piece.position.x === position.x && piece.position.y === position.y
+      );
+      if (pieceAtPosition) {
+        return player.id;
+      }
+    }
+    return undefined;
+  }, [state.players]);
 
-    const piece = state.players
-      .flatMap(player => player.pieces)
-      .find(p => p.position.x === x && p.position.y === y);
+  // Render a cell
+  const renderCell = useCallback((x: number, y: number) => {
+    const position: Position = { x, y };
+    const pieces = getPiecesAtPosition(position);
+    const isHighlighted = isValidMovePosition(position);
+    const playerId = getPlayerColorForPosition(position);
+    const isHome = isHomeArea(position);
+    const isSafe = isSafeZone(position);
+    const isRegular = isRegularSpot(position);
+    const isMokshaArea = isMoksha(position);
+    const isMiddlePath = isMiddleSquarePath(position);
+    const isInnerPath = isInnerSquarePath(position);
+    const square = getSquare(position);
 
     return (
-      <Cell 
-        key={`${x}-${y}`} 
-        isHome={homeInfo.isHome}
-        playerId={homeInfo.playerId}
-        isSafeZone={safe}
-        isRegularSpot={regular}
-        isMoksha={moksha}
-        isMiddleSquarePath={middlePath}
-        isInnerSquarePath={innerPath}
+      <Cell
+        key={`${x}-${y}`}
+        isSafeZone={isSafe}
+        isHomeArea={isHome}
+        playerId={playerId}
+        isHighlighted={isHighlighted}
+        isRegularSpot={isRegular}
+        isMoksha={isMokshaArea}
+        isMiddleSquarePath={isMiddlePath}
+        isInnerSquarePath={isInnerPath}
         square={square}
+        onClick={() => handleCellClick(position)}
       >
-        {piece && (
+        {pieces.map((piece) => (
           <Piece
-            color={state.players[piece.playerId - 1]?.color || '#ccc'}
-            isSelected={state.selectedPiece?.id === piece.id}
-            onClick={() => handlePieceClick(piece)}
+            key={piece.id}
+            color={PLAYER_COLORS[piece.playerId - 1]}
+            isSelected={isPieceSelected(piece)}
+            isMovable={canPieceBeMoved(piece)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePieceClick(piece);
+            }}
+          />
+        ))}
+        {isHighlighted && (
+          <MoveIndicator
+            position={position}
+            isValid={true}
+            isSelected={false}
+            onClick={() => handleCellClick(position)}
           />
         )}
-        <CoordinateTooltip>{`${x},${y}`}</CoordinateTooltip>
       </Cell>
     );
-  };
+  }, [
+    getPiecesAtPosition,
+    isValidMovePosition,
+    getPlayerColorForPosition,
+    isHomeArea,
+    isSafeZone,
+    isRegularSpot,
+    isMoksha,
+    isMiddleSquarePath,
+    isInnerSquarePath,
+    getSquare,
+    handleCellClick,
+    isPieceSelected,
+    canPieceBeMoved,
+    handlePieceClick
+  ]);
 
-  const cells = [];
-  for (let y = 1; y <= BOARD_SIZE; y++) {
-    for (let x = 1; x <= BOARD_SIZE; x++) {
-      cells.push(renderCell(x, y));
+  // Get current player info
+  const currentPlayer = state.players[state.currentPlayerIndex];
+  const gameOver = isGameOver();
+  const winners = getWinners();
+
+  // Clear turn skipped flag after a delay when it's set
+  React.useEffect(() => {
+    if (state.turnSkipped) {
+      const timer = setTimeout(() => {
+        dispatch({ type: 'CLEAR_TURN_SKIPPED' });
+      }, 3000);
+      return () => clearTimeout(timer);
     }
-  }
+  }, [state.turnSkipped, dispatch]);
+
+  // Get valid piece IDs for selector
+  const validPieceIds = getCurrentPlayerValidMoves().map(item => item.piece.id);
 
   return (
     <BoardContainer>
+      {state.turnSkipped && (
+        <TurnSkippedNotification>
+          ⚠️ Turn automatically skipped - no valid moves available
+        </TurnSkippedNotification>
+      )}
       <BoardTitle>🎲 Ludo Game Board</BoardTitle>
       
       <GameLayout>
         <BoardWrapper>
           <BoardGrid>
-            {cells}
+            {Array.from({ length: BOARD_SIZE }, (_, y) =>
+              Array.from({ length: BOARD_SIZE }, (_, x) => renderCell(x + 1, y + 1))
+            )}
           </BoardGrid>
-          <BoardLayout />
-          <PathIndicators 
+          {/* <BoardLayout /> */}
+          {/* <PathIndicators 
             indicators={[
               // Example path indicators for demonstration
               { type: 'turn-left', x: 5, y: 30, color: '#FF6B6B', strokeWidth: 5 },
@@ -376,19 +613,25 @@ const GameBoard: React.FC = () => {
               { type: 'straight-down', x: 3, y: 15, color: '#FF5722', strokeWidth: 4 }
             ]} 
             isVisible={true}
-          />
+          /> */}
         </BoardWrapper>
 
         <GameInfo>
           <h3>Game Status</h3>
-          <p>Current Player: {state.players[state.currentPlayerIndex]?.name || 'None'}</p>
+          <p>Current Player: {currentPlayer?.name || 'None'}</p>
           
           <div style={{ marginTop: '20px' }}>
             <h4>Players:</h4>
             {state.players.map((player, index) => (
-              <PlayerInfo key={player.id} isCurrentTurn={index === state.currentPlayerIndex}>
+              <div key={player.id} style={{
+                padding: '10px',
+                margin: '5px 0',
+                borderRadius: '5px',
+                background: index === state.currentPlayerIndex ? '#e3f2fd' : '#f5f5f5',
+                borderLeft: `4px solid ${index === state.currentPlayerIndex ? '#2196f3' : '#ddd'}`
+              }}>
                 <strong>{player.name}</strong> - {player.pieces.filter(p => p.isInMoksha).length}/4 in Moksha
-              </PlayerInfo>
+              </div>
             ))}
           </div>
 
@@ -418,7 +661,88 @@ const GameBoard: React.FC = () => {
         </GameInfo>
       </GameLayout>
       
-      <PathIndicatorDemo />
+      {/* <PathIndicatorDemo /> */}
+
+      <GameBoardContainer>
+        <GameInfoPanel>
+          <GameStatus>
+            {gameOver ? 'Game Over!' : `Player ${currentPlayer?.id}'s Turn`}
+          </GameStatus>
+
+          {!gameOver && (
+            <>
+              <TurnInfo>
+                <PlayerIndicator color={PLAYER_COLORS[state.currentPlayerIndex]} />
+                <span>Player {currentPlayer?.id}</span>
+              </TurnInfo>
+
+              <MovementControls>
+                <ControlButton
+                  onClick={rollDiceForCurrentPlayer}
+                  disabled={!canRollDice()}
+                  variant="primary"
+                >
+                  Roll Dice
+                </ControlButton>
+
+                {state.diceRolls.length > 0 && (
+                  <>
+                    <div>
+                      Dice: {state.diceRolls.map(roll => roll.value).join(', ')}
+                    </div>
+                    
+                    <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+                      {hasBonusThrows() ? 
+                        'Bonus throw! Roll again!' :
+                        currentPlayerHasValidMoves() ? 
+                          'Valid moves available' : 
+                          'No valid moves - turn automatically skipped'
+                      }
+                    </div>
+                    
+                    {currentPlayerHasValidMoves() && !hasBonusThrows() && (
+                      <ControlButton
+                        onClick={() => setShowPieceSelector(true)}
+                        variant="secondary"
+                      >
+                        Select Piece
+                      </ControlButton>
+                    )}
+
+                    {!hasBonusThrows() && (
+                      <ControlButton
+                        onClick={endTurn}
+                        disabled={!canEndTurn()}
+                        variant="danger"
+                      >
+                        End Turn
+                      </ControlButton>
+                    )}
+                  </>
+                )}
+              </MovementControls>
+            </>
+          )}
+
+          {gameOver && winners.length > 0 && (
+            <div>
+              <h3>Winner(s):</h3>
+              {winners.map(player => (
+                <div key={player.id}>Player {player.id}</div>
+              ))}
+            </div>
+          )}
+        </GameInfoPanel>
+
+        {showPieceSelector && (
+          <PieceSelector
+            pieces={currentPlayer?.pieces || []}
+            onPieceSelect={handlePieceSelect}
+            selectedPieceId={selectedPiece?.id}
+            validPieceIds={validPieceIds}
+          />
+        )}
+      </GameBoardContainer>
     </BoardContainer>
   );
 };

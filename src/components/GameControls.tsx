@@ -169,7 +169,7 @@ export const GameControls: React.FC<GameControlsProps> = ({
           </button>
         )}
         
-        {!currentPlayerHasMovablePieces() && totalDiceValue > 0 && (
+        {!currentPlayerHasMovablePieces() && totalDiceValue > 0 && !hasBonusThrows() && (
           <div className="no-moves-message">
             No valid moves available. Turn will be skipped.
           </div>

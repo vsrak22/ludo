@@ -18,7 +18,11 @@ import {
   canMovePiece,
   getPiecesAtPosition,
   canMultiplePiecesOccupy,
-  getMaxPiecesAtPosition
+  getMaxPiecesAtPosition,
+  executeMove as executeMoveUtil,
+  getValidMoves,
+  hasValidMoves,
+  isValidLudoMove
 } from '../utils/gameUtils';
 
 // Initial game state
@@ -29,10 +33,16 @@ const createInitialGameState = (): GameState => ({
   gamePhase: 'setup',
   selectedPiece: null,
   gameMode: '4player',
-  diceType: 'standard'
+  diceType: 'standard',
+  // Phase 4 additions
+  lastRoll: null,
+  gameOver: false,
+  lastMoveValidation: null,
+  highlightedPositions: [],
+  turnSkipped: false
 });
 
-// Game reducer
+// Enhanced game reducer with Phase 4 movement rules
 const gameReducer = (state: GameState, action: GameAction): GameState => {
   switch (action.type) {
     case 'START_GAME':
@@ -74,82 +84,77 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       };
 
     case 'ROLL_DICE':
-      const currentPlayer = state.players[state.currentPlayerIndex];
-      if (!currentPlayer || !currentPlayer.currentTurn || !isPlayerActive(currentPlayer)) {
-        return state;
+      const newRoll = rollDice(state.diceType);
+      const updatedRolls = [...state.diceRolls, newRoll];
+      
+      // Check if there are bonus throws available first
+      const hasBonusThrows = canContinueRolling(updatedRolls);
+      
+      // If there are bonus throws, always allow the player to continue rolling
+      if (hasBonusThrows) {
+        return {
+          ...state,
+          diceRolls: updatedRolls,
+          lastRoll: newRoll
+        };
       }
-
-      // Roll the dice based on the current dice type
-      const newDiceRoll = rollDice(state.diceType);
       
-      // Check if player has any movable pieces with this roll
-      const hasMovablePiecesWithRoll = hasMovablePieces(currentPlayer, newDiceRoll.value);
+      // Only check for valid moves if there are no bonus throws
+      const rollingPlayer = state.players[state.currentPlayerIndex];
+      const diceValueForTurn = getTotalDiceValue(updatedRolls);
+      const playerHasMoves = hasValidMoves(rollingPlayer, diceValueForTurn, state.players);
       
-      // If no movable pieces and it's not a bonus roll, skip turn
-      if (!hasMovablePiecesWithRoll && !newDiceRoll.isBonus) {
-        // Auto-advance to next player
+      // If no valid moves and no bonus throws, automatically end turn
+      if (!playerHasMoves) {
         const nextPlayerIndex = getNextPlayerIndex(state.currentPlayerIndex, state.players.length);
-        const skippedTurnPlayers = state.players.map((player, index) => ({
+        const updatedPlayers = state.players.map((player, index) => ({
           ...player,
           currentTurn: index === nextPlayerIndex
         }));
 
         return {
           ...state,
-          players: skippedTurnPlayers,
           currentPlayerIndex: nextPlayerIndex,
+          players: updatedPlayers,
           diceRolls: [],
-          selectedPiece: null
+          lastRoll: null,
+          selectedPiece: null,
+          turnSkipped: true
         };
       }
-
+      
       return {
         ...state,
-        diceRolls: [...state.diceRolls, newDiceRoll]
+        diceRolls: updatedRolls,
+        lastRoll: newRoll
       };
 
     case 'SELECT_PIECE':
-      const selectedPlayer = state.players[state.currentPlayerIndex];
-      if (!selectedPlayer || !selectedPlayer.currentTurn) return state;
-      
-      // Check if the piece belongs to the current player
-      if (action.piece.playerId !== selectedPlayer.id) return state;
-      
-      // Check if the piece can be moved with current dice value
-      const totalDiceValue = getTotalDiceValue(state.diceRolls);
-      if (!canMovePiece(action.piece, totalDiceValue)) return state;
-      
       return {
         ...state,
         selectedPiece: action.piece
       };
 
+    case 'CLEAR_SELECTION':
+      return {
+        ...state,
+        selectedPiece: null
+      };
+
+    case 'SET_DICE_TYPE':
+      return {
+        ...state,
+        diceType: action.diceType
+      };
+
     case 'MOVE_PIECE':
-      const { piece, from, to, isCapture, capturedPiece } = action.move;
-      const movingPlayer = state.players[state.currentPlayerIndex];
+      const { piece: movedPiece, from, to, isCapture, capturedPiece } = action.move;
       
-      if (!movingPlayer || !movingPlayer.currentTurn) return state;
-      
-      // Update the moving piece
-      let updatedPiece = movePiece(piece, to);
-      
-      // Check if piece reached Moksha
-      if (to.x === MOKSHA_POSITION.x && to.y === MOKSHA_POSITION.y) {
-        updatedPiece = moveToMoksha(updatedPiece, to);
-      }
-      
-      // Handle capture if it occurred
-      let capturedPieceUpdated: GamePiece | undefined;
-      if (isCapture && capturedPiece) {
-        const homePos = getHomePosition(capturedPiece);
-        capturedPieceUpdated = capturePiece(capturedPiece, homePos);
-      }
-      
-      // Update players with new piece positions
-      const movedPlayers = state.players.map(player => {
-        if (player.id === piece.playerId) {
+      // Update the piece in the player's pieces array
+      const updatedPlayersWithMove = state.players.map(player => {
+        if (player.id === movedPiece.playerId) {
           const updatedPieces = player.pieces.map(p => 
-            p.id === piece.id ? updatedPiece : p
+            p.id === movedPiece.id ? movedPiece : p
           );
           
           // Check if player has won
@@ -158,51 +163,40 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
           return {
             ...player,
             pieces: updatedPieces,
-            hasWon
+            hasWon,
+            isActive: !hasWon
           };
         }
-        
-        if (capturedPieceUpdated && player.id === capturedPieceUpdated.playerId) {
-          const updatedPieces = player.pieces.map(p => 
-            p.id === capturedPieceUpdated!.id ? capturedPieceUpdated! : p
-          );
-          
-          return {
-            ...player,
-            pieces: updatedPieces
-          };
-        }
-        
         return player;
       });
-      
-      // Check if current player can continue (has bonus throws)
-      const canContinue = canContinueRolling(state.diceRolls);
-      
-      if (canContinue) {
-        // Player can continue rolling
-        return {
-          ...state,
-          players: movedPlayers,
-          selectedPiece: null,
-          diceRolls: [] // Clear dice rolls for next roll
-        };
-      } else {
-        // End turn and move to next player
-        const nextPlayerIndex = getNextPlayerIndex(state.currentPlayerIndex, state.players.length);
-        const finalUpdatedPlayers = movedPlayers.map((player, index) => ({
-          ...player,
-          currentTurn: index === nextPlayerIndex
-        }));
 
-        return {
-          ...state,
-          players: finalUpdatedPlayers,
-          currentPlayerIndex: nextPlayerIndex,
-          diceRolls: [],
-          selectedPiece: null
-        };
+      // Handle captured piece if any
+      let finalPlayers = updatedPlayersWithMove;
+      if (isCapture && capturedPiece) {
+        finalPlayers = finalPlayers.map(player => {
+          if (player.id === capturedPiece.playerId) {
+            const updatedPieces = player.pieces.map(p => 
+              p.id === capturedPiece.id ? capturedPiece : p
+            );
+            return {
+              ...player,
+              pieces: updatedPieces
+            };
+          }
+          return player;
+        });
       }
+
+      // Check if game is over
+      const activePlayers = finalPlayers.filter(player => isPlayerActive(player));
+      const gameOver = activePlayers.length <= 1;
+
+      return {
+        ...state,
+        players: finalPlayers,
+        gameOver,
+        selectedPiece: null
+      };
 
     case 'END_TURN':
       const nextPlayerIndex = getNextPlayerIndex(state.currentPlayerIndex, state.players.length);
@@ -213,17 +207,97 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
 
       return {
         ...state,
-        players: updatedPlayers,
         currentPlayerIndex: nextPlayerIndex,
+        players: updatedPlayers,
         diceRolls: [],
+        lastRoll: null,
         selectedPiece: null
       };
 
     case 'RESET_GAME':
       return createInitialGameState();
 
+    case 'VALIDATE_MOVE':
+      const { piece: validatePiece, targetPosition } = action;
+      const totalDiceValue = getTotalDiceValue(state.diceRolls);
+      const validation = isValidLudoMove(validatePiece, targetPosition, totalDiceValue, state.players);
+      
+      return {
+        ...state,
+        lastMoveValidation: validation
+      };
+
+    case 'EXECUTE_MOVE_WITH_CAPTURE':
+      const { piece: pieceToMove, targetPosition: targetPos } = action;
+      const moveResult = executeMoveUtil(pieceToMove, targetPos, state.players);
+      
+      // Create move object for the MOVE_PIECE action
+      const move: Move = {
+        piece: moveResult.updatedPiece,
+        from: pieceToMove.position,
+        to: targetPos,
+        isCapture: moveResult.capturedPieces.length > 0,
+        capturedPiece: moveResult.capturedPieces[0]
+      };
+      
+      // Dispatch the move action
+      return gameReducer(state, { type: 'MOVE_PIECE', move });
+
+    case 'HIGHLIGHT_VALID_MOVES':
+      const { pieceId } = action;
+      const highlightPiece = state.players
+        .flatMap(p => p.pieces)
+        .find(p => p.id === pieceId);
+      
+      if (highlightPiece) {
+        const totalDiceValue = getTotalDiceValue(state.diceRolls);
+        const validMoves = getValidMoves(highlightPiece, totalDiceValue, state.players);
+        
+        return {
+          ...state,
+          highlightedPositions: validMoves,
+          selectedPiece: highlightPiece
+        };
+      }
+      
+      return state;
+
+    case 'CLEAR_HIGHLIGHTS':
+      return {
+        ...state,
+        highlightedPositions: [],
+        selectedPiece: null
+      };
+
+    case 'CHECK_GAME_OVER':
+      const activePlayersCount = state.players.filter(player => isPlayerActive(player)).length;
+      const isGameOver = activePlayersCount <= 1;
+      
+      return {
+        ...state,
+        gameOver: isGameOver
+      };
+
+    case 'AUTO_END_TURN':
+      // Automatically end turn if no valid moves available
+      const currentPlayer = state.players[state.currentPlayerIndex];
+      const totalDiceValueForTurn = getTotalDiceValue(state.diceRolls);
+      const hasMoves = hasValidMoves(currentPlayer, totalDiceValueForTurn, state.players);
+      
+      if (!hasMoves && !canContinueRolling(state.diceRolls)) {
+        return gameReducer(state, { type: 'END_TURN' });
+      }
+      
+      return state;
+
     default:
       return state;
+
+    case 'CLEAR_TURN_SKIPPED':
+      return {
+        ...state,
+        turnSkipped: false
+      };
   }
 };
 
