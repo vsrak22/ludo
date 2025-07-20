@@ -1,120 +1,195 @@
-import React from 'react';
-import styled from 'styled-components';
+import React, { useState } from 'react';
+import { useGameLogic } from '../hooks/useGameLogic';
 import { DiceRoll } from '../types/game';
-
-const DiceContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 20px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  min-width: 200px;
-`;
-
-const DiceTitle = styled.h3`
-  margin: 0;
-  color: #333;
-  font-size: 1.2rem;
-`;
-
-const DiceDisplay = styled.div`
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
-`;
-
-const DiceValue = styled.div<{ isBonus: boolean }>`
-  width: 50px;
-  height: 50px;
-  background: ${props => props.isBonus ? '#e74c3c' : '#3498db'};
-  color: white;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  font-weight: bold;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
-  border: 2px solid ${props => props.isBonus ? '#c0392b' : '#2980b9'};
-  transition: all 0.2s ease;
-
-  &:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-  }
-`;
-
-const TotalValue = styled.div`
-  font-size: 1.1rem;
-  font-weight: bold;
-  color: #2c3e50;
-  margin-top: 10px;
-  padding: 8px 16px;
-  background: #ecf0f1;
-  border-radius: 5px;
-  border: 1px solid #bdc3c7;
-`;
-
-const BonusIndicator = styled.div`
-  color: #e74c3c;
-  font-size: 0.9rem;
-  font-weight: bold;
-  margin-top: 5px;
-`;
-
-const NoDiceMessage = styled.div`
-  color: #7f8c8d;
-  font-style: italic;
-  padding: 20px;
-`;
+import { DICE_RULES } from '../constants/gameConstants';
+import './Dice.css';
 
 interface DiceProps {
-  diceRolls: DiceRoll[];
-  diceType: 'standard' | 'indian';
+  onRoll?: (diceRoll: DiceRoll) => void;
+  disabled?: boolean;
+  diceType?: 'standard' | 'indian';
+  size?: 'small' | 'medium' | 'large';
 }
 
-const Dice: React.FC<DiceProps> = ({ diceRolls, diceType }) => {
-  const totalValue = diceRolls.reduce((sum, roll) => sum + roll.value, 0);
-  const hasBonus = diceRolls.some(roll => roll.isBonus);
+export const Dice: React.FC<DiceProps> = ({ 
+  onRoll, 
+  disabled = false, 
+  diceType = 'standard',
+  size = 'medium'
+}) => {
+  const { state, rollDiceForCurrentPlayer, canRollDice, getCurrentPlayer } = useGameLogic();
+  const [isRolling, setIsRolling] = useState(false);
+  const [currentValue, setCurrentValue] = useState<number>(1);
+  const [animationKey, setAnimationKey] = useState(0);
 
-  if (diceRolls.length === 0) {
+  const currentPlayer = getCurrentPlayer();
+  const canRoll = canRollDice() && !disabled && !isRolling;
+  const currentDiceType = diceType || state.diceType;
+
+  // Handle dice rolling animation
+  const handleRoll = async () => {
+    if (!canRoll) return;
+
+    setIsRolling(true);
+    setAnimationKey(prev => prev + 1);
+
+    // Simulate rolling animation
+    const rollDuration = 1000; // 1 second
+    const rollInterval = 100; // Update every 100ms
+    const iterations = rollDuration / rollInterval;
+
+    for (let i = 0; i < iterations; i++) {
+      await new Promise(resolve => setTimeout(resolve, rollInterval));
+      const randomValue = Math.floor(Math.random() * DICE_RULES[currentDiceType].maxValue) + 1;
+      setCurrentValue(randomValue);
+    }
+
+    // Final roll
+    rollDiceForCurrentPlayer();
+    setIsRolling(false);
+
+    // Get the latest dice roll from state
+    const latestRoll = state.diceRolls[state.diceRolls.length - 1];
+    if (onRoll && latestRoll) {
+      onRoll(latestRoll);
+    }
+  };
+
+  // Get dice face based on value and type
+  const getDiceFace = (value: number, type: 'standard' | 'indian') => {
+    if (type === 'standard') {
+      return getStandardDiceFace(value);
+    } else {
+      return getIndianDiceFace(value);
+    }
+  };
+
+  // Standard 6-sided dice faces
+  const getStandardDiceFace = (value: number) => {
+    const dots: React.ReactElement[] = [];
+    const positions: { [key: number]: [number, number][] } = {
+      1: [[2, 2]],
+      2: [[1, 1], [3, 3]],
+      3: [[1, 1], [2, 2], [3, 3]],
+      4: [[1, 1], [1, 3], [3, 1], [3, 3]],
+      5: [[1, 1], [1, 3], [2, 2], [3, 1], [3, 3]],
+      6: [[1, 1], [1, 2], [1, 3], [3, 1], [3, 2], [3, 3]]
+    };
+
+    const pos = positions[value] || [];
+    pos.forEach(([row, col]) => {
+      dots.push(
+        <div
+          key={`${row}-${col}`}
+          className="dice-dot"
+          style={{
+            gridRow: row,
+            gridColumn: col
+          }}
+        />
+      );
+    });
+
+    return dots;
+  };
+
+  // Indian 4-sided dice faces (simplified representation)
+  const getIndianDiceFace = (value: number) => {
+    // Indian dice are typically 4-sided with blank faces
+    // We'll represent them as numbers 1-4, where 1, 5, 6, 12 are bonus values
+    const indianValues = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const displayValue = indianValues[value - 1] || value;
+    
     return (
-      <DiceContainer>
-        <DiceTitle>🎲 Dice</DiceTitle>
-        <NoDiceMessage>No dice rolled yet</NoDiceMessage>
-      </DiceContainer>
+      <div className="indian-dice-value">
+        {displayValue}
+      </div>
     );
-  }
+  };
+
+  // Get dice color based on player
+  const getDiceColor = () => {
+    if (!currentPlayer) return '#666';
+    return currentPlayer.color;
+  };
+
+  // Get size class
+  const getSizeClass = () => {
+    switch (size) {
+      case 'small': return 'dice-small';
+      case 'large': return 'dice-large';
+      default: return 'dice-medium';
+    }
+  };
+
+  // Check if current value is a bonus roll
+  const isBonus = DICE_RULES[currentDiceType].bonusValues.includes(currentValue);
 
   return (
-    <DiceContainer>
-      <DiceTitle>
-        🎲 {diceType === 'standard' ? 'Standard Dice' : 'Indian Dice'}
-      </DiceTitle>
+    <div className={`dice-container ${getSizeClass()}`}>
+      <div className="dice-info">
+        <span className="dice-type">{currentDiceType === 'standard' ? '6-sided' : 'Indian'}</span>
+        {currentPlayer && (
+          <span className="dice-player" style={{ color: currentPlayer.color }}>
+            {currentPlayer.name}
+          </span>
+        )}
+      </div>
       
-      <DiceDisplay>
-        {diceRolls.map((roll, index) => (
-          <DiceValue key={index} isBonus={roll.isBonus}>
-            {roll.value}
-          </DiceValue>
-        ))}
-      </DiceDisplay>
-      
-      <TotalValue>
-        Total: {totalValue}
-      </TotalValue>
-      
-      {hasBonus && (
-        <BonusIndicator>
-          ✨ Bonus Throw Available!
-        </BonusIndicator>
+      <div 
+        className={`dice ${isRolling ? 'dice-rolling' : ''} ${isBonus ? 'dice-bonus' : ''}`}
+        style={{ 
+          borderColor: getDiceColor(),
+          backgroundColor: isBonus ? `${getDiceColor()}20` : 'white'
+        }}
+        key={animationKey}
+        onClick={handleRoll}
+      >
+        {getDiceFace(currentValue, currentDiceType)}
+        
+        {isBonus && (
+          <div className="dice-bonus-indicator">
+            Bonus!
+          </div>
+        )}
+      </div>
+
+      <div className="dice-controls">
+        <button
+          className={`dice-roll-button ${!canRoll ? 'disabled' : ''}`}
+          onClick={handleRoll}
+          disabled={!canRoll}
+        >
+          {isRolling ? 'Rolling...' : 'Roll Dice'}
+        </button>
+        
+        {isBonus && (
+          <div className="bonus-message">
+            Bonus throw! Roll again!
+          </div>
+        )}
+      </div>
+
+      {state.diceRolls.length > 0 && (
+        <div className="dice-history">
+          <h4>Roll History:</h4>
+          <div className="dice-rolls">
+            {state.diceRolls.map((roll, index) => (
+              <div 
+                key={index} 
+                className={`dice-roll-item ${roll.isBonus ? 'bonus' : ''}`}
+              >
+                <span className="roll-value">{roll.value}</span>
+                {roll.isBonus && <span className="bonus-badge">Bonus</span>}
+              </div>
+            ))}
+          </div>
+          <div className="total-value">
+            Total: {state.diceRolls.reduce((sum, roll) => sum + roll.value, 0)}
+          </div>
+        </div>
       )}
-    </DiceContainer>
+    </div>
   );
 };
 

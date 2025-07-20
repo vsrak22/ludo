@@ -1,6 +1,25 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
-import { GameState, GameAction, Player, GamePiece, Position, DiceRoll } from '../types/game';
-import { PLAYER_COLORS, PLAYER_NAMES, PLAYER_STARTING_POSITIONS } from '../constants/gameConstants';
+import { GameState, GameAction, Player, GamePiece, Position, DiceRoll, Move } from '../types/game';
+import { PLAYER_COLORS, PLAYER_NAMES, PLAYER_STARTING_POSITIONS, MOKSHA_POSITION } from '../constants/gameConstants';
+import { 
+  rollDice, 
+  getTotalDiceValue, 
+  canContinueRolling, 
+  movePiece, 
+  capturePiece, 
+  moveToMoksha,
+  canCapturePiece,
+  getHomePosition,
+  hasPlayerWon,
+  getNextPlayerIndex,
+  isPlayerActive,
+  hasMovablePieces,
+  getMovablePieces,
+  canMovePiece,
+  getPiecesAtPosition,
+  canMultiplePiecesOccupy,
+  getMaxPiecesAtPosition
+} from '../utils/gameUtils';
 
 // Initial game state
 const createInitialGameState = (): GameState => ({
@@ -50,22 +69,39 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         gameMode: action.gameMode,
         diceType: action.diceType,
         currentPlayerIndex: 0,
-        diceRolls: []
+        diceRolls: [],
+        selectedPiece: null
       };
 
     case 'ROLL_DICE':
       const currentPlayer = state.players[state.currentPlayerIndex];
-      if (!currentPlayer || !currentPlayer.currentTurn) return state;
+      if (!currentPlayer || !currentPlayer.currentTurn || !isPlayerActive(currentPlayer)) {
+        return state;
+      }
 
-      // Simple dice roll logic (will be enhanced later)
-      const diceValue = Math.floor(Math.random() * 6) + 1;
-      const isBonus = [1, 5, 6].includes(diceValue);
+      // Roll the dice based on the current dice type
+      const newDiceRoll = rollDice(state.diceType);
       
-      const newDiceRoll: DiceRoll = {
-        value: diceValue,
-        isBonus,
-        diceType: state.diceType
-      };
+      // Check if player has any movable pieces with this roll
+      const hasMovablePiecesWithRoll = hasMovablePieces(currentPlayer, newDiceRoll.value);
+      
+      // If no movable pieces and it's not a bonus roll, skip turn
+      if (!hasMovablePiecesWithRoll && !newDiceRoll.isBonus) {
+        // Auto-advance to next player
+        const nextPlayerIndex = getNextPlayerIndex(state.currentPlayerIndex, state.players.length);
+        const skippedTurnPlayers = state.players.map((player, index) => ({
+          ...player,
+          currentTurn: index === nextPlayerIndex
+        }));
+
+        return {
+          ...state,
+          players: skippedTurnPlayers,
+          currentPlayerIndex: nextPlayerIndex,
+          diceRolls: [],
+          selectedPiece: null
+        };
+      }
 
       return {
         ...state,
@@ -73,17 +109,103 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       };
 
     case 'SELECT_PIECE':
+      const selectedPlayer = state.players[state.currentPlayerIndex];
+      if (!selectedPlayer || !selectedPlayer.currentTurn) return state;
+      
+      // Check if the piece belongs to the current player
+      if (action.piece.playerId !== selectedPlayer.id) return state;
+      
+      // Check if the piece can be moved with current dice value
+      const totalDiceValue = getTotalDiceValue(state.diceRolls);
+      if (!canMovePiece(action.piece, totalDiceValue)) return state;
+      
       return {
         ...state,
         selectedPiece: action.piece
       };
 
     case 'MOVE_PIECE':
-      // This will be implemented in Phase 4 with full movement logic
-      return state;
+      const { piece, from, to, isCapture, capturedPiece } = action.move;
+      const movingPlayer = state.players[state.currentPlayerIndex];
+      
+      if (!movingPlayer || !movingPlayer.currentTurn) return state;
+      
+      // Update the moving piece
+      let updatedPiece = movePiece(piece, to);
+      
+      // Check if piece reached Moksha
+      if (to.x === MOKSHA_POSITION.x && to.y === MOKSHA_POSITION.y) {
+        updatedPiece = moveToMoksha(updatedPiece, to);
+      }
+      
+      // Handle capture if it occurred
+      let capturedPieceUpdated: GamePiece | undefined;
+      if (isCapture && capturedPiece) {
+        const homePos = getHomePosition(capturedPiece);
+        capturedPieceUpdated = capturePiece(capturedPiece, homePos);
+      }
+      
+      // Update players with new piece positions
+      const movedPlayers = state.players.map(player => {
+        if (player.id === piece.playerId) {
+          const updatedPieces = player.pieces.map(p => 
+            p.id === piece.id ? updatedPiece : p
+          );
+          
+          // Check if player has won
+          const hasWon = hasPlayerWon({ ...player, pieces: updatedPieces });
+          
+          return {
+            ...player,
+            pieces: updatedPieces,
+            hasWon
+          };
+        }
+        
+        if (capturedPieceUpdated && player.id === capturedPieceUpdated.playerId) {
+          const updatedPieces = player.pieces.map(p => 
+            p.id === capturedPieceUpdated!.id ? capturedPieceUpdated! : p
+          );
+          
+          return {
+            ...player,
+            pieces: updatedPieces
+          };
+        }
+        
+        return player;
+      });
+      
+      // Check if current player can continue (has bonus throws)
+      const canContinue = canContinueRolling(state.diceRolls);
+      
+      if (canContinue) {
+        // Player can continue rolling
+        return {
+          ...state,
+          players: movedPlayers,
+          selectedPiece: null,
+          diceRolls: [] // Clear dice rolls for next roll
+        };
+      } else {
+        // End turn and move to next player
+        const nextPlayerIndex = getNextPlayerIndex(state.currentPlayerIndex, state.players.length);
+        const finalUpdatedPlayers = movedPlayers.map((player, index) => ({
+          ...player,
+          currentTurn: index === nextPlayerIndex
+        }));
+
+        return {
+          ...state,
+          players: finalUpdatedPlayers,
+          currentPlayerIndex: nextPlayerIndex,
+          diceRolls: [],
+          selectedPiece: null
+        };
+      }
 
     case 'END_TURN':
-      const nextPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
+      const nextPlayerIndex = getNextPlayerIndex(state.currentPlayerIndex, state.players.length);
       const updatedPlayers = state.players.map((player, index) => ({
         ...player,
         currentTurn: index === nextPlayerIndex

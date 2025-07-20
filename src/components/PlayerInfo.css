@@ -1,0 +1,382 @@
+/* PlayerInfo Component Styles */
+
+.player-info {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.player-info:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Size variants */
+.player-info-small {
+  padding: 12px;
+  min-width: 180px;
+}
+
+.player-info-medium {
+  padding: 16px;
+  min-width: 220px;
+}
+
+.player-info-large {
+  padding: 20px;
+  min-width: 280px;
+}
+
+/* Status-based styling */
+.player-current {
+  border-color: #3498db;
+  box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+}
+
+.player-waiting {
+  border-color: #95a5a6;
+  opacity: 0.8;
+}
+
+.player-won {
+  border-color: #f39c12;
+  background: linear-gradient(135deg, #ffffff 0%, #fff8e1 100%);
+  box-shadow: 0 4px 15px rgba(243, 156, 18, 0.3);
+}
+
+.player-inactive {
+  border-color: #e74c3c;
+  opacity: 0.6;
+  background: #f8f9fa;
+}
+
+/* Player header */
+.player-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.player-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 1.2rem;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+  position: relative;
+}
+
+.player-info-small .player-avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+}
+
+.player-info-large .player-avatar {
+  width: 60px;
+  height: 60px;
+  font-size: 1.5rem;
+}
+
+.player-initial {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.player-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.player-name {
+  margin: 0 0 4px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #2c3e50;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-info-small .player-name {
+  font-size: 1rem;
+}
+
+.player-info-large .player-name {
+  font-size: 1.3rem;
+}
+
+.player-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: #7f8c8d;
+}
+
+.status-icon {
+  font-size: 1rem;
+}
+
+.status-text {
+  font-weight: 500;
+}
+
+/* Player stats */
+.player-stats {
+  margin-top: 12px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 8px 4px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: #6c757d;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #2c3e50;
+}
+
+.player-info-small .stat-value {
+  font-size: 1rem;
+}
+
+.player-info-large .stat-value {
+  font-size: 1.4rem;
+}
+
+/* Piece count styling */
+.home-pieces {
+  color: #e74c3c;
+}
+
+.board-pieces {
+  color: #3498db;
+}
+
+.moksha-pieces {
+  color: #27ae60;
+}
+
+.total-pieces {
+  color: #2c3e50;
+}
+
+/* Progress bar */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.progress-text {
+  font-size: 0.8rem;
+  color: #6c757d;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* Current player indicator */
+.current-player-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(52, 152, 219, 0.1);
+  color: #3498db;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid rgba(52, 152, 219, 0.2);
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 152, 219, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(52, 152, 219, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 152, 219, 0);
+  }
+}
+
+/* Winner indicator */
+.winner-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(243, 156, 18, 0.1);
+  color: #f39c12;
+  padding: 6px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid rgba(243, 156, 18, 0.2);
+  animation: winnerGlow 2s infinite;
+}
+
+@keyframes winnerGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(243, 156, 18, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(243, 156, 18, 0.6);
+  }
+}
+
+.winner-icon {
+  font-size: 1rem;
+  animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+  60% {
+    transform: translateY(-2px);
+  }
+}
+
+.winner-text {
+  font-weight: bold;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .player-info {
+    padding: 12px;
+    min-width: 160px;
+  }
+  
+  .player-header {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  
+  .player-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+  
+  .player-name {
+    font-size: 1rem;
+  }
+  
+  .stats-grid {
+    gap: 6px;
+  }
+  
+  .stat-item {
+    padding: 6px 2px;
+  }
+  
+  .stat-label {
+    font-size: 0.65rem;
+  }
+  
+  .stat-value {
+    font-size: 1rem;
+  }
+  
+  .current-player-indicator,
+  .winner-indicator {
+    position: static;
+    margin-top: 8px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .player-info {
+    padding: 10px;
+    min-width: 140px;
+  }
+  
+  .player-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 0.9rem;
+  }
+  
+  .player-name {
+    font-size: 0.9rem;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 4px;
+  }
+  
+  .stat-label {
+    font-size: 0.6rem;
+  }
+  
+  .stat-value {
+    font-size: 0.9rem;
+  }
+  
+  .progress-text {
+    font-size: 0.7rem;
+  }
+} 

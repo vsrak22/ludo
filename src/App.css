@@ -6,6 +6,8 @@
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
 }
 
 * {
@@ -23,6 +25,99 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Game container layout */
+.game-container {
+  display: flex;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: calc(100vh - 40px);
+  align-items: flex-start;
+}
+
+.game-board-section {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 600px;
+}
+
+.game-controls-section {
+  width: 400px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 20px;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+  .game-container {
+    max-width: 100%;
+    gap: 16px;
+  }
+  
+  .game-controls-section {
+    width: 350px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .App {
+    padding: 16px;
+  }
+  
+  .game-container {
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+  
+  .game-board-section {
+    width: 100%;
+    min-height: 500px;
+  }
+  
+  .game-controls-section {
+    width: 100%;
+    max-width: 500px;
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .App {
+    padding: 12px;
+  }
+  
+  .game-container {
+    gap: 12px;
+  }
+  
+  .game-board-section {
+    min-height: 400px;
+  }
+  
+  .game-controls-section {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .App {
+    padding: 8px;
+  }
+  
+  .game-container {
+    gap: 8px;
+  }
+  
+  .game-board-section {
+    min-height: 350px;
+  }
+}
+
+/* Button styles */
 button {
   font-family: inherit;
   cursor: pointer;
@@ -32,13 +127,67 @@ button {
   color: white;
   padding: 8px 16px;
   font-size: 14px;
-  transition: background-color 0.2s ease;
+  transition: all 0.2s ease;
 }
 
 button:hover {
   background: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 button:active {
-  transform: translateY(1px);
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+button:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Loading and transition states */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  font-size: 1.2rem;
+  color: #6c757d;
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }

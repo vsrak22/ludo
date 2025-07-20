@@ -94,7 +94,9 @@ const PathIndicatorDemo: React.FC = () => {
     'diagonal-up-left',
     'diagonal-up-right',
     'diagonal-down-left',
-    'diagonal-down-right'
+    'diagonal-down-right',
+    'turn-left',
+    'turn-right'
   ];
 
   const colors = [

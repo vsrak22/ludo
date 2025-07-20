@@ -33,7 +33,9 @@ export type PathType =
   | 'diagonal-up-left'  // Diagonal movement up-left
   | 'diagonal-up-right' // Diagonal movement up-right
   | 'diagonal-down-left' // Diagonal movement down-left
-  | 'diagonal-down-right'; // Diagonal movement down-right
+  | 'diagonal-down-right' // Diagonal movement down-right
+  | 'turn-left'         // Turn left only
+  | 'turn-right';       // Turn right only
 
 interface PathIndicatorProps {
   type: PathType;
@@ -93,6 +95,14 @@ const PATH_DEFINITIONS = {
   'diagonal-down-right': {
     path: 'M 25 25 L 75 75',
     arrow: 'M 75 75 L 70 70 L 75 65 L 80 70 Z'
+  },
+  'turn-left': {
+    path: 'M 75 50 Q 50 50 25 50',
+    arrow: 'M 25 50 L 20 45 L 15 50 L 20 55 Z'
+  },
+  'turn-right': {
+    path: 'M 25 50 Q 50 50 75 50',
+    arrow: 'M 75 50 L 70 45 L 75 40 L 80 45 Z'
   }
 };
 
@@ -102,7 +112,7 @@ const PathIndicator: React.FC<PathIndicatorProps> = ({
   y, 
   isVisible = true, 
   color = '#4CAF50',
-  strokeWidth = 2
+  strokeWidth = 4
 }) => {
   if (!isVisible) return null;
 
@@ -121,15 +131,15 @@ const PathIndicator: React.FC<PathIndicatorProps> = ({
         stroke={color}
         strokeWidth={strokeWidth}
         fill="none"
-        opacity="0.8"
-        strokeDasharray="8,4"
+        opacity="1.0"
+        strokeDasharray="6,3"
         className="path-line"
       />
       {/* Arrowhead */}
       <path
         d={pathDef.arrow}
         fill={color}
-        opacity="0.9"
+        opacity="1.0"
         className="path-arrow"
       />
     </g>
@@ -191,11 +201,11 @@ export const generatePathIndicators = (x: number, y: number, diceValue?: number)
     // Can turn left and go up (if dice allows)
     if (!diceValue || diceValue >= 2) {
       indicators.push({
-        type: 'turn-left-up',
+        type: 'turn-left',
         x: 5,
         y: 30,
         color: '#FF6B6B',
-        strokeWidth: 3
+        strokeWidth: 5
       });
     }
     // Can continue straight and go up
@@ -205,7 +215,7 @@ export const generatePathIndicators = (x: number, y: number, diceValue?: number)
         x: 5,
         y: 30,
         color: '#4ECDC4',
-        strokeWidth: 2
+        strokeWidth: 4
       });
     }
   }
@@ -218,7 +228,7 @@ export const generatePathIndicators = (x: number, y: number, diceValue?: number)
       x: 4,
       y: 30,
       color: '#45B7D1',
-      strokeWidth: 2
+      strokeWidth: 4
     });
   }
 
@@ -230,7 +240,7 @@ export const generatePathIndicators = (x: number, y: number, diceValue?: number)
       x: 3,
       y: 30,
       color: '#96CEB4',
-      strokeWidth: 2
+      strokeWidth: 4
     });
   }
 
