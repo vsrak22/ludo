@@ -35,7 +35,7 @@ export const PLAYER_ENTRY_POSITIONS = {
 // Safe zones in the outer square
 export const SAFE_ZONES = [
   // Corner safe zones (4 spots each)
-  { x: 3, y: 4, width: 2, height: 1 },
+  { x: 3, y: 3, width: 2, height: 2 },
   { x: 3, y: 29, width: 2, height: 2 },
   { x: 29, y: 29, width: 2, height: 2 },
   { x: 29, y: 3, width: 2, height: 2 },
@@ -59,6 +59,72 @@ export const REGULAR_SPOTS = [
   { x: 19, y: 3, width: 10, height: 2 }   // Eighth rectangle
 ];
 
+// Middle square path positions (inner path)
+export const MIDDLE_SQUARE_PATHS = [
+  // Top left corner (x: 7-8, y: 7-8)
+  { x: 7, y: 7, width: 2, height: 2 },
+  // Top path (x: 9-16, y: 7-8)
+  { x: 9, y: 7, width: 8, height: 2 },
+  // Top right corner (x: 17-18, y: 7-8)
+  { x: 17, y: 7, width: 2, height: 2 },
+  // Top right path (x: 19-24, y: 7-8)
+  { x: 19, y: 7, width: 6, height: 2 },
+  // Top right corner (x: 25-26, y: 7-8)
+  { x: 25, y: 7, width: 2, height: 2 },
+  // Right top path (x: 25-26, y: 9-16)
+  { x: 25, y: 9, width: 2, height: 8 },
+  // Right path (x: 25-26, y: 17-18) - covers the missing squares
+  { x: 25, y: 17, width: 2, height: 2 },
+  // Right bottom path (x: 25-26, y: 19-26)
+  { x: 25, y: 19, width: 2, height: 8 },
+  // Bottom right corner (x: 25-26, y: 25-26)
+  { x: 25, y: 25, width: 2, height: 2 },
+  // Bottom path (x: 17-24, y: 25-26) - covers the missing squares
+  { x: 17, y: 25, width: 8, height: 2 },
+  // Bottom left corner (x: 7-8, y: 25-26)
+  { x: 7, y: 25, width: 2, height: 2 },
+  // Bottom path (x: 9-16, y: 25-26)
+  { x: 9, y: 25, width: 8, height: 2 },
+  // Bottom left path (x: 7-8, y: 19-26)
+  { x: 7, y: 19, width: 2, height: 8 },
+  // Left path (x: 7-8, y: 17-18) - covers the missing squares
+  { x: 7, y: 17, width: 2, height: 2 },
+  // Left path (x: 7-8, y: 9-16)
+  { x: 7, y: 9, width: 2, height: 8 }
+];
+
+// Inner square path positions (innermost path)
+export const INNER_SQUARE_PATHS = [
+  // Top left corner (x: 11-12, y: 11-12)
+  { x: 11, y: 11, width: 2, height: 2 },
+  // Top path (x: 13-18, y: 11-12)
+  { x: 13, y: 11, width: 6, height: 2 },
+  // Top right corner (x: 19-20, y: 11-12)
+  { x: 19, y: 11, width: 2, height: 2 },
+  // Top right path (x: 21-22, y: 11-12)
+  { x: 21, y: 11, width: 2, height: 2 },
+  // Right top path (x: 21-22, y: 13-18)
+  { x: 21, y: 13, width: 2, height: 6 },
+  // Right path (x: 21-22, y: 19-20) - covers the missing squares
+  { x: 21, y: 19, width: 2, height: 2 },
+  // Right bottom path (x: 21-22, y: 21-22) - only the bottom edge
+  { x: 21, y: 21, width: 2, height: 2 },
+  // Bottom right corner (x: 21-22, y: 21-22)
+  { x: 21, y: 21, width: 2, height: 2 },
+  // Bottom path (x: 19-20, y: 21-22)
+  { x: 19, y: 21, width: 2, height: 2 },
+  // Bottom path (x: 13-18, y: 21-22)
+  { x: 13, y: 21, width: 6, height: 2 },
+  // Bottom left corner (x: 11-12, y: 21-22)
+  { x: 11, y: 21, width: 2, height: 2 },
+  // Bottom left path (x: 11-12, y: 21-22) - only the bottom edge
+  { x: 11, y: 21, width: 2, height: 2 },
+  // Left path (x: 11-12, y: 19-20) - covers the missing squares
+  { x: 11, y: 19, width: 2, height: 2 },
+  // Left path (x: 11-12, y: 13-18)
+  { x: 11, y: 13, width: 2, height: 6 }
+];
+
 // Second square positions for each player
 export const SECOND_SQUARE_POSITIONS = {
   1: {
@@ -76,6 +142,22 @@ export const SECOND_SQUARE_POSITIONS = {
   4: {
     start: [{ x: 26, y: 16 }, { x: 25, y: 16 }],
     end: [{ x: 26, y: 17 }, { x: 25, y: 17 }]
+  }
+};
+
+// Board square boundaries
+export const BOARD_SQUARES = {
+  outer: {
+    x: { min: 3, max: 30 },
+    y: { min: 3, max: 30 }
+  },
+  middle: {
+    x: { min: 7, max: 26 },
+    y: { min: 7, max: 26 }
+  },
+  inner: {
+    x: { min: 11, max: 22 },
+    y: { min: 11, max: 22 }
   }
 };
 
@@ -99,7 +181,15 @@ export const THIRD_SQUARE_POSITIONS = {
   }
 };
 
-// Moksha (center) position
+// Moksha (center) area - 4x4 square
+export const MOKSHA_AREA = {
+  x: 15,
+  y: 15,
+  width: 4,
+  height: 4
+};
+
+// Moksha center position (for reference)
 export const MOKSHA_POSITION = { x: 16, y: 16 };
 
 // Dice rules
