@@ -1,46 +1,143 @@
-# Getting Started with Create React App
+# Ludo Game
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern implementation of the classic Ludo board game built with React and TypeScript. This game supports 2-4 players with both standard and traditional Indian dice rules.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **2-4 Player Support**: Play with 2, 3, or 4 players
+- **Dual Dice Systems**: Choose between standard 6-sided dice or traditional Indian 4-sided dice
+- **Complex Board Layout**: 32x32 grid with three concentric squares and safe zones
+- **Professional UI**: Modern, responsive design with smooth animations
+- **Game State Management**: Robust state management using React Context
 
-### `npm start`
+## Game Rules
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+### Basic Rules
+- Each player has 4 pieces that start in their home area
+- Players roll dice to move pieces around the board
+- First piece must enter with a roll of 1
+- Subsequent pieces can enter with 1 or 5
+- Pieces move clockwise around three concentric squares
+- Goal is to get all 4 pieces to Moksha (center)
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+### Dice Rules
+- **Standard Dice**: Roll 1, 5, or 6 for bonus throws
+- **Indian Dice**: Roll 1, 5, 6, or 12 (both dice blank) for bonus throws
 
-### `npm test`
+### Special Rules
+- Pieces can capture opponents by landing on the same square
+- Safe zones protect pieces from capture
+- Exact dice value needed to enter Moksha
+- Game continues until only one player remains
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Getting Started
 
-### `npm run build`
+### Prerequisites
+- Node.js (version 14 or higher)
+- npm or yarn
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Installation
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd ludo-game
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+2. Install dependencies:
+```bash
+npm install
+```
 
-### `npm run eject`
+3. Start the development server:
+```bash
+npm start
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+4. Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Available Scripts
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+- `npm start` - Runs the app in development mode
+- `npm test` - Launches the test runner
+- `npm run build` - Builds the app for production
+- `npm run eject` - Ejects from Create React App (one-way operation)
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+## Project Structure
 
-## Learn More
+```
+src/
+├── components/          # React components
+│   ├── GameBoard.tsx   # Main game board component
+│   └── GameSetup.tsx   # Game setup screen
+├── constants/          # Game constants and configuration
+│   └── gameConstants.ts
+├── store/             # State management
+│   └── GameContext.tsx
+├── types/             # TypeScript type definitions
+│   └── game.ts
+├── hooks/             # Custom React hooks
+├── utils/             # Utility functions
+└── App.tsx           # Main application component
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Game Architecture
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### State Management
+The game uses React Context API for state management with a reducer pattern. The main state includes:
+- Player information and pieces
+- Current game phase and turn
+- Dice rolls and selected pieces
+- Game configuration
+
+### Board System
+The game board is a 32x32 grid with:
+- Player home areas in the corners
+- Three concentric square paths
+- Safe zones and regular spots
+- Moksha (center) as the final destination
+
+### Component Hierarchy
+- `App` - Main application wrapper with GameProvider
+- `GameSetup` - Game configuration screen
+- `GameBoard` - Main game interface
+- Individual game pieces and UI elements
+
+## Development Status
+
+### Phase 1: Project Setup and Foundation ✅
+- [x] React project initialization
+- [x] TypeScript configuration
+- [x] Basic project architecture
+- [x] Game state management
+- [x] Core game types and constants
+- [x] Basic UI components
+
+### Upcoming Phases
+- Phase 2: Game Board Implementation
+- Phase 3: Game Logic Implementation
+- Phase 4: Game Rules Implementation
+- Phase 5: User Interface Development
+- Phase 6: Visual Design and Graphics
+- Phase 7: Game Features and Polish
+- Phase 8: Testing and Quality Assurance
+- Phase 9: Documentation and Deployment
+- Phase 10: Future Enhancements
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
+
+## Acknowledgments
+
+- Traditional Ludo game rules and mechanics
+- React and TypeScript communities
+- Styled-components for styling

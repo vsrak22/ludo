@@ -1,25 +1,24 @@
 import React from 'react';
-import logo from './logo.svg';
+import { GameProvider, useGame } from './store/GameContext';
+import GameSetup from './components/GameSetup';
+import GameBoard from './components/GameBoard';
 import './App.css';
+
+const GameApp: React.FC = () => {
+  const { state } = useGame();
+
+  return (
+    <div className="App">
+      {state.gamePhase === 'setup' ? <GameSetup /> : <GameBoard />}
+    </div>
+  );
+};
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <GameProvider>
+      <GameApp />
+    </GameProvider>
   );
 }
 
