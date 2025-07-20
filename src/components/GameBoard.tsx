@@ -4,6 +4,8 @@ import { useGame } from '../store/GameContext';
 import { BOARD_SIZE, PLAYER_COLORS, SAFE_ZONES, REGULAR_SPOTS, MOKSHA_AREA, MIDDLE_SQUARE_PATHS, INNER_SQUARE_PATHS } from '../constants/gameConstants';
 import BoardLayout from './BoardLayout';
 import Dice from './Dice';
+import PathIndicators from './PathIndicators';
+import PathIndicatorDemo from './PathIndicatorDemo';
 
 const BoardContainer = styled.div`
   display: flex;
@@ -366,6 +368,24 @@ const GameBoard: React.FC = () => {
             {cells}
           </BoardGrid>
           <BoardLayout />
+          <PathIndicators 
+            indicators={[
+              // Example path indicators for demonstration
+              { type: 'turn-left-up', x: 5, y: 30, color: '#FF6B6B', strokeWidth: 3 },
+              { type: 'straight-up', x: 5, y: 30, color: '#4ECDC4', strokeWidth: 2 },
+              { type: 'straight-up', x: 4, y: 30, color: '#45B7D1', strokeWidth: 2 },
+              { type: 'straight-up', x: 3, y: 30, color: '#96CEB4', strokeWidth: 2 },
+              { type: 'turn-right-down', x: 15, y: 3, color: '#FF9800', strokeWidth: 3 },
+              { type: 'straight-down', x: 15, y: 3, color: '#9C27B0', strokeWidth: 2 },
+              { type: 'turn-left-up', x: 29, y: 15, color: '#E91E63', strokeWidth: 3 },
+              { type: 'straight-up', x: 29, y: 15, color: '#3F51B5', strokeWidth: 2 },
+              { type: 'turn-left-up', x: 15, y: 29, color: '#009688', strokeWidth: 3 },
+              { type: 'straight-up', x: 15, y: 29, color: '#795548', strokeWidth: 2 },
+              { type: 'turn-right-down', x: 3, y: 15, color: '#607D8B', strokeWidth: 3 },
+              { type: 'straight-down', x: 3, y: 15, color: '#FF5722', strokeWidth: 2 }
+            ]} 
+            isVisible={true}
+          />
         </BoardWrapper>
 
         <GameInfo>
@@ -421,6 +441,8 @@ const GameBoard: React.FC = () => {
           </div>
         </GameInfo>
       </GameLayout>
+      
+      <PathIndicatorDemo />
     </BoardContainer>
   );
 };
